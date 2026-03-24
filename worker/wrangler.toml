@@ -8,4 +8,4 @@ ENVIRONMENT = "production"
 [[d1_databases]]
 binding = "DB"
 database_name = "app-registry"
-database_id = "" # Fill after `wrangler d1 create app-registry`
+database_id = "885d0e16-61f6-4431-aec2-f82678148270"
