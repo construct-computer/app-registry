@@ -188,7 +188,7 @@ export async function browsePage(url: URL, env: { DB: D1Database }): Promise<Res
 
   const content = `
     <div class="hero">
-      <h1>Construct App Store</h1>
+      <h1>Construct App Registry</h1>
       <p>Discover apps for your AI-powered desktop</p>
       <form class="search-form" action="/" method="get">
         ${category ? `<input type="hidden" name="category" value="${esc(category)}">` : ''}
@@ -342,7 +342,7 @@ export async function appDetailPage(appId: string, env: { DB: D1Database }): Pro
 
       <div class="detail-install">
         <h3>Install in Construct</h3>
-        <p>Open the App Store in your Construct desktop, search for <strong>${esc(app.name)}</strong>, and click Install.</p>
+        <p>Open the App Registry in your Construct desktop, search for <strong>${esc(app.name)}</strong>, and click Install.</p>
       </div>
 
       ${screenshotsHtml}
@@ -457,7 +457,7 @@ git push -u origin main</code></pre>
               <li>Verifies icon and README exist</li>
               <li>Flags dangerous permissions for review</li>
             </ul>
-            <p>Once a maintainer approves and merges, your app appears in the Construct App Store.</p>
+            <p>Once a maintainer approves and merges, your app appears in the Construct App Registry.</p>
           </div>
         </div>
 
