@@ -1,0 +1,11 @@
+{
+  "repo": "https://github.com/construct-computer/construct-app-mercadolibre",
+  "description": "Complete MercadoLibre integration — search products, manage listings, process orders, answer questions, and track shipments across Latin America.",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "commit": "3b277994fd2143c85b440a8b3275bb6003b464c1",
+      "date": "2026-03-25"
+    }
+  ]
+}
