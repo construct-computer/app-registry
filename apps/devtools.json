@@ -1,5 +1,5 @@
 {
-  "repo": "https://github.com/construct-computer/construct-app-hello-world",
+  "repo": "https://github.com/construct-computer/construct-app-sample",
   "description": "Developer toolkit with JSON formatter, Base64, hashing, UUID generator, timestamps, and URL encoding.",
   "versions": [
     {
