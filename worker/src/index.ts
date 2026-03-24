@@ -245,6 +245,35 @@ async function getFeatured(env: Env): Promise<Response> {
   }, 200, 120)
 }
 
+// ── Curated integrations (verified to work with Construct) ──
+
+interface CuratedRow {
+  slug: string
+  name: string
+  description: string
+  category: string
+  source: string
+  icon_url: string | null
+  sort_order: number
+}
+
+async function getCurated(env: Env): Promise<Response> {
+  const { results } = await env.DB.prepare(
+    'SELECT * FROM curated_apps ORDER BY category ASC, sort_order ASC'
+  ).all<CuratedRow>()
+
+  const apps = (results || []).map(row => ({
+    slug: row.slug,
+    name: row.name,
+    description: row.description,
+    category: row.category,
+    source: row.source,
+    icon_url: row.icon_url,
+  }))
+
+  return json({ apps }, 200, 300)
+}
+
 // ── Sync endpoint (called by GitHub Actions after merge) ──
 
 interface SyncAppPayload {
@@ -279,7 +308,11 @@ async function syncApps(request: Request, env: Env): Promise<Response> {
     return error('Unauthorized', 401)
   }
 
-  const body = await request.json() as { apps: SyncAppPayload[]; collections?: Array<{ id: string; name: string; description?: string; apps: string[] }> }
+  const body = await request.json() as {
+    apps: SyncAppPayload[]
+    collections?: Array<{ id: string; name: string; description?: string; apps: string[] }>
+    curated?: Array<{ slug: string; name: string; description: string; category: string; source: string; icon_url?: string; sort_order?: number }>
+  }
   if (!body.apps || !Array.isArray(body.apps)) {
     return error('Missing apps array')
   }
@@ -367,6 +400,21 @@ async function syncApps(request: Request, env: Env): Promise<Response> {
     }
   }
 
+  // Sync curated integrations if provided (full replace)
+  if (body.curated && Array.isArray(body.curated)) {
+    await env.DB.prepare('DELETE FROM curated_apps').run()
+    for (const c of body.curated) {
+      await env.DB.prepare(`
+        INSERT INTO curated_apps (slug, name, description, category, source, icon_url, sort_order, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        c.slug, c.name, c.description, c.category,
+        c.source || 'composio', c.icon_url || null,
+        c.sort_order ?? 0, now
+      ).run()
+    }
+  }
+
   return json({ ok: true, synced })
 }
 
@@ -410,6 +458,7 @@ export default {
       // Public API endpoints
       if (request.method === 'GET') {
         if (path === '/v1/apps')        return listApps(url, env)
+        if (path === '/v1/curated')     return getCurated(env)
         if (path === '/v1/categories')  return getCategories(env)
         if (path === '/v1/featured')    return getFeatured(env)
 

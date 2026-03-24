@@ -71,3 +71,19 @@ CREATE TABLE IF NOT EXISTS collection_apps (
   FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
   FOREIGN KEY (app_id) REFERENCES apps(id) ON DELETE CASCADE
 );
+
+-- Curated integrations — verified to work with Construct.
+-- Managed via curated.json in the registry repo.
+CREATE TABLE IF NOT EXISTS curated_apps (
+  slug        TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  description TEXT NOT NULL,
+  category    TEXT NOT NULL DEFAULT 'productivity',
+  source      TEXT NOT NULL DEFAULT 'composio',
+  icon_url    TEXT,
+  sort_order  INTEGER DEFAULT 0,
+  updated_at  INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_curated_category ON curated_apps(category);
+CREATE INDEX IF NOT EXISTS idx_curated_source ON curated_apps(source);

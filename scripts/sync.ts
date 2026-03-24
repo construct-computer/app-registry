@@ -173,7 +173,29 @@ try {
   // no collections dir
 }
 
-const payload = { apps, collections };
+// Process curated integrations
+let curated: unknown[] = [];
+try {
+  if (existsSync("curated.json")) {
+    const data = JSON.parse(await Deno.readTextFile("curated.json")) as {
+      apps?: Array<{
+        slug: string;
+        name: string;
+        description: string;
+        category: string;
+        source?: string;
+        icon_url?: string;
+        sort_order?: number;
+      }>;
+    };
+    curated = data.apps ?? [];
+    console.log(`Found ${curated.length} curated integrations`);
+  }
+} catch (err) {
+  console.warn(`Warning: Failed to read curated.json: ${err}`);
+}
+
+const payload = { apps, collections, curated };
 console.log(`\nSyncing ${apps.length} apps to registry...`);
 
 const response = await fetch(`${SYNC_URL}/v1/sync`, {

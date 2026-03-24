@@ -1,0 +1,133 @@
+{
+  "description": "Curated integrations verified to work with Construct. Edit this file and push to update the App Store.",
+  "apps": [
+    {
+      "slug": "googlecalendar",
+      "name": "Google Calendar",
+      "description": "Manage events and scheduling.",
+      "category": "productivity",
+      "source": "composio",
+      "sort_order": 0
+    },
+    {
+      "slug": "notion",
+      "name": "Notion",
+      "description": "Manage pages and databases.",
+      "category": "productivity",
+      "source": "composio",
+      "sort_order": 1
+    },
+    {
+      "slug": "todoist",
+      "name": "Todoist",
+      "description": "Create and manage tasks and projects.",
+      "category": "productivity",
+      "source": "composio",
+      "sort_order": 2
+    },
+    {
+      "slug": "trello",
+      "name": "Trello",
+      "description": "Organize boards, lists, and cards.",
+      "category": "productivity",
+      "source": "composio",
+      "sort_order": 3
+    },
+    {
+      "slug": "gmail",
+      "name": "Gmail",
+      "description": "Read, compose, and manage email.",
+      "category": "communication",
+      "source": "composio",
+      "sort_order": 0
+    },
+    {
+      "slug": "hubspot",
+      "name": "HubSpot",
+      "description": "Manage contacts, deals, and CRM.",
+      "category": "communication",
+      "source": "composio",
+      "sort_order": 1
+    },
+    {
+      "slug": "intercom",
+      "name": "Intercom",
+      "description": "Manage customer conversations.",
+      "category": "communication",
+      "source": "composio",
+      "sort_order": 2
+    },
+    {
+      "slug": "mailchimp",
+      "name": "Mailchimp",
+      "description": "Create and manage email campaigns.",
+      "category": "communication",
+      "source": "composio",
+      "sort_order": 3
+    },
+    {
+      "slug": "github",
+      "name": "GitHub",
+      "description": "Manage repos, issues, and PRs.",
+      "category": "dev-tools",
+      "source": "composio",
+      "sort_order": 0
+    },
+    {
+      "slug": "linear",
+      "name": "Linear",
+      "description": "Track issues and plan sprints.",
+      "category": "dev-tools",
+      "source": "composio",
+      "sort_order": 1
+    },
+    {
+      "slug": "jira",
+      "name": "Jira",
+      "description": "Manage projects, sprints, and boards.",
+      "category": "dev-tools",
+      "source": "composio",
+      "sort_order": 2
+    },
+    {
+      "slug": "sentry",
+      "name": "Sentry",
+      "description": "Monitor errors and performance.",
+      "category": "dev-tools",
+      "source": "composio",
+      "sort_order": 3
+    },
+    {
+      "slug": "googledrive",
+      "name": "Google Drive",
+      "description": "Access and organize cloud files.",
+      "category": "data",
+      "source": "composio",
+      "sort_order": 0
+    },
+    {
+      "slug": "googlesheets",
+      "name": "Google Sheets",
+      "description": "Create and manage spreadsheets.",
+      "category": "data",
+      "source": "composio",
+      "sort_order": 1
+    },
+    {
+      "slug": "airtable",
+      "name": "Airtable",
+      "description": "Manage databases, views, and records.",
+      "category": "data",
+      "source": "composio",
+      "sort_order": 2
+    },
+    {
+      "slug": "dropbox",
+      "name": "Dropbox",
+      "description": "Store and share files in the cloud.",
+      "category": "data",
+      "source": "composio",
+      "sort_order": 3
+    }
+  ]
+}
