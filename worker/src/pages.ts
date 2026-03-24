@@ -343,8 +343,6 @@ export async function appDetailPage(appId: string, env: { DB: D1Database }): Pro
       <div class="detail-install">
         <h3>Install in Construct</h3>
         <p>Open the App Store in your Construct desktop, search for <strong>${esc(app.name)}</strong>, and click Install.</p>
-        <p class="alt-install">Or install manually from the terminal:</p>
-        <pre><code>construct install ${esc(app.id)}</code></pre>
       </div>
 
       ${screenshotsHtml}
@@ -482,7 +480,7 @@ git push -u origin main</code></pre>
 
       <div class="publish-cta">
         <h2>Ready to publish?</h2>
-        <p>Check out the <a href="https://github.com/construct-computer/construct-app-hello-world">Hello World reference app</a> to see a complete example.</p>
+        <p>Check out the <a href="https://github.com/construct-computer/construct-app-hello-world">DevTools reference app</a> to see a complete example.</p>
         <a href="https://github.com/construct-computer/app-registry/fork" class="btn-primary" target="_blank" rel="noopener">Fork the Registry &rarr;</a>
       </div>
     </div>`

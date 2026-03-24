@@ -22,4 +22,4 @@ jobs:
         env:
           REGISTRY_SYNC_URL: ${{ secrets.REGISTRY_SYNC_URL }}
           REGISTRY_SYNC_SECRET: ${{ secrets.REGISTRY_SYNC_SECRET }}
-        run: deno run --allow-read --allow-net --allow-env --allow-run scripts/sync.ts
+        run: deno run --allow-read --allow-write --allow-net --allow-env --allow-run scripts/sync.ts
