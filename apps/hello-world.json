@@ -1,5 +1,6 @@
 {
   "repo": "https://github.com/construct-computer/construct-app-hello-world",
+  "description": "A simple hello world app for Construct",
   "versions": [
     {
       "version": "1.0.0",
