@@ -1,0 +1,11 @@
+{
+  "repo": "https://github.com/construct-computer/construct-app-hello-world",
+  "description": "Developer toolkit with JSON formatter, Base64, hashing, UUID generator, timestamps, and URL encoding.",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "commit": "d89db62b124fda48113648d74eb45ab035bf0b1f",
+      "date": "2026-03-24"
+    }
+  ]
+}
