@@ -2,10 +2,14 @@ name = "construct-app-registry"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 
+routes = [
+  { pattern = "registry.construct.computer", custom_domain = true },
+]
+
 [vars]
 ENVIRONMENT = "production"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "app-registry"
-database_id = "885d0e16-61f6-4431-aec2-f82678148270"
+database_id = "1473e4b2-7925-4f8d-b3c0-74f73aeeb449"
