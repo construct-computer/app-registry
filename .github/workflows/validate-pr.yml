@@ -15,6 +15,10 @@ jobs:
         with:
           deno-version: v2.x
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Find changed app files
         id: changed
         run: |
@@ -61,30 +65,21 @@ jobs:
               cd -; continue
             fi
 
-            manifest_id=$(jq -r '.id' manifest.json)
             manifest_name=$(jq -r '.name' manifest.json)
-            manifest_version=$(jq -r '.version' manifest.json)
-            manifest_entry=$(jq -r '.entry' manifest.json)
             manifest_desc=$(jq -r '.description' manifest.json)
 
-            if [ "$manifest_id" = "null" ] || [ "$manifest_name" = "null" ] || [ "$manifest_entry" = "null" ]; then
-              ERRORS="$ERRORS\n- $app_id: manifest.json missing required fields (id, name, entry)"
+            if [ "$manifest_name" = "null" ] || [ "$manifest_desc" = "null" ]; then
+              ERRORS="$ERRORS\n- $app_id: manifest.json missing required fields (name, description)"
               cd -; continue
             fi
 
-            if [ "$manifest_id" != "$app_id" ]; then
-              ERRORS="$ERRORS\n- $app_id: manifest.id ($manifest_id) does not match filename ($app_id)"
-              cd -; continue
-            fi
-
-            if [ "$manifest_version" != "$latest_version" ]; then
-              ERRORS="$ERRORS\n- $app_id: manifest.version ($manifest_version) does not match pointer version ($latest_version)"
-              cd -; continue
-            fi
-
-            # Check entry point exists
-            if [ ! -f "$manifest_entry" ]; then
-              ERRORS="$ERRORS\n- $app_id: Entry point $manifest_entry not found"
+            # Check for a server entry point (server.ts or src/index.ts)
+            has_entry="false"
+            for entry in server.ts src/index.ts index.ts; do
+              if [ -f "$entry" ]; then has_entry="true"; break; fi
+            done
+            if [ "$has_entry" = "false" ]; then
+              ERRORS="$ERRORS\n- $app_id: No entry point found (server.ts, src/index.ts, or index.ts)"
               cd -; continue
             fi
 
@@ -104,11 +99,22 @@ jobs:
               cd -; continue
             fi
 
-            # Deno type check
-            deno check "$manifest_entry" 2>/dev/null || {
-              ERRORS="$ERRORS\n- $app_id: deno check failed on $manifest_entry"
-              cd -; continue
-            }
+            # Type check — try npm build first (Worker apps), fall back to deno check
+            if [ -f package.json ]; then
+              echo "  Building with npm..."
+              npm install --silent 2>/dev/null && npm run build --silent 2>/dev/null || {
+                ERRORS="$ERRORS\n- $app_id: npm build failed"
+                cd -; continue
+              }
+            else
+              entry_file=$(ls server.ts src/index.ts index.ts 2>/dev/null | head -1)
+              if [ -n "$entry_file" ]; then
+                deno check "$entry_file" 2>/dev/null || {
+                  ERRORS="$ERRORS\n- $app_id: deno check failed on $entry_file"
+                  cd -; continue
+                }
+              fi
+            fi
 
             # Count screenshots
             screenshot_count=0
@@ -116,20 +122,18 @@ jobs:
               screenshot_count=$(ls screenshots/*.png 2>/dev/null | wc -l | tr -d ' ')
             fi
 
-            # Check permissions
-            permissions=$(jq -c '.permissions // {}' manifest.json)
-            has_ui=$(jq -r '.ui // empty' manifest.json)
-            tools=$(jq -c '[.tools[]? | {name, description}]' manifest.json)
+            # Collect metadata for summary
             categories=$(jq -r '.categories[0] // "utilities"' manifest.json)
+            has_ui_dir=$([ -d ui ] && echo 'Yes' || echo 'No')
+            has_auth=$(jq -r '.auth // empty' manifest.json)
 
-            SUMMARY="$SUMMARY\n### $manifest_name ($app_id) v$manifest_version"
+            SUMMARY="$SUMMARY\n### $manifest_name ($app_id) v$latest_version"
             SUMMARY="$SUMMARY\n- **Description**: $manifest_desc"
-            SUMMARY="$SUMMARY\n- **Author**: $(jq -r '.author.name // "Unknown"' manifest.json)"
             SUMMARY="$SUMMARY\n- **Category**: $categories"
-            SUMMARY="$SUMMARY\n- **Tools**: $(echo "$tools" | jq -r '.[].name' | tr '\n' ', ' | sed 's/,$//')"
-            SUMMARY="$SUMMARY\n- **Has UI**: $([ -n "$has_ui" ] && echo 'Yes' || echo 'No')"
+            SUMMARY="$SUMMARY\n- **Has UI**: $has_ui_dir"
+            SUMMARY="$SUMMARY\n- **Has Auth**: $([ -n "$has_auth" ] && echo 'Yes' || echo 'No')"
             SUMMARY="$SUMMARY\n- **Screenshots**: $screenshot_count"
-            SUMMARY="$SUMMARY\n- **Permissions**: $permissions"
+            SUMMARY="$SUMMARY\n- **Endpoint**: https://$app_id.apps.construct.computer"
             SUMMARY="$SUMMARY\n- ✅ All checks passed"
 
             cd -

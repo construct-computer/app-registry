@@ -24,12 +24,13 @@ interface AppPointer {
 interface Manifest {
   name: string;
   description: string;
-  author: { name: string; url?: string };
+  author?: { name: string; url?: string };
   categories?: string[];
   tags?: string[];
   ui?: unknown;
   tools?: Array<{ name: string; description: string }>;
   permissions?: Record<string, unknown>;
+  auth?: Record<string, unknown>;
 }
 
 const apps: unknown[] = [];
@@ -166,7 +167,7 @@ for await (const entry of Deno.readDir("apps")) {
     screenshot_count: screenshotCount,
     category: manifest.categories?.[0] ?? "utilities",
     tags: (manifest.tags ?? []).join(","),
-    has_ui: !!manifest.ui,
+    has_ui: !!manifest.ui || existsSync(`${tmpdir}/ui`),
     verified:
       verifiedOrgs.has(repoOwner.toLowerCase()) ||
       verifiedAppIds.has(appId.toLowerCase()),

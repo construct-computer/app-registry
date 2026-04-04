@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS apps (
   verified          INTEGER DEFAULT 0,
   status            TEXT DEFAULT 'active',
   has_ui            INTEGER DEFAULT 0,
+  base_url          TEXT,
   tools_json        TEXT,
   permissions_json  TEXT,
   created_at        INTEGER NOT NULL,
