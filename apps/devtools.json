@@ -6,6 +6,11 @@
       "version": "1.0.0",
       "commit": "0c3f98524f47050dbefc0c6fdbbb64bab9da9d30",
       "date": "2026-03-24"
+    },
+    {
+      "version": "2.0.0",
+      "commit": "d982edda24afee2403e80a37b7e2b3276682a5d1",
+      "date": "2026-04-04"
     }
   ]
 }
