@@ -20,6 +20,14 @@
  */
 
 import { browsePage, appDetailPage, publishPage } from './pages'
+import { handleMcp as devtoolsMcp } from './apps/devtools'
+import { handleMcp as mercadolibreMcp } from './apps/mercadolibre'
+
+/** Map of app ID → MCP handler. Apps are bundled into this worker. */
+const APP_HANDLERS: Record<string, (request: Request) => Promise<Response>> = {
+  devtools: devtoolsMcp,
+  mercadolibre: mercadolibreMcp,
+}
 
 interface Env {
   DB: D1Database
@@ -478,34 +486,29 @@ async function handleAppProxy(path: string, request: Request, env: Env): Promise
     return new Response('ok', { headers: CORS_HEADERS })
   }
 
-  // MCP endpoint — proxy to the app's worker
+  // MCP endpoint — call bundled app handler directly
   if (subpath === '/mcp' && request.method === 'POST') {
-    const workerUrl = `https://construct-app-${appId}.construct-computer.workers.dev/mcp`
+    const handler = APP_HANDLERS[appId]
+    if (!handler) {
+      return Response.json(
+        { jsonrpc: '2.0', id: null, error: { code: -32000, message: `App "${appId}" is not installed on this server.` } },
+        { status: 404, headers: CORS_HEADERS },
+      )
+    }
 
     try {
-      const proxyResponse = await fetch(workerUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...( request.headers.get('x-construct-auth') ? { 'x-construct-auth': request.headers.get('x-construct-auth')! } : {}),
-          ...( request.headers.get('x-construct-user') ? { 'x-construct-user': request.headers.get('x-construct-user')! } : {}),
-        },
-        body: request.body,
-      })
-
-      const responseBody = await proxyResponse.text()
-      return new Response(responseBody, {
-        status: proxyResponse.status,
-        headers: {
-          'Content-Type': 'application/json',
-          ...CORS_HEADERS,
-        },
+      const response = await handler(request)
+      // Add CORS headers to the response
+      const body = await response.text()
+      return new Response(body, {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       return Response.json(
-        { jsonrpc: '2.0', id: null, error: { code: -32000, message: `App "${appId}" is not reachable: ${msg}` } },
-        { status: 502, headers: CORS_HEADERS },
+        { jsonrpc: '2.0', id: null, error: { code: -32000, message: `App "${appId}" error: ${msg}` } },
+        { status: 500, headers: CORS_HEADERS },
       )
     }
   }
