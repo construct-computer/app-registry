@@ -104,7 +104,7 @@ function formatApp(app: AppRow, full = false) {
     featured: app.featured === 1,
     verified: app.verified === 1,
     has_ui: app.has_ui === 1,
-    base_url: app.base_url || `https://construct-app-${app.id}.construct-computer.workers.dev`,
+    base_url: app.base_url || `https://apps.construct.computer/${app.id}`,
     icon_url: buildIconUrl(app.repo_owner, app.repo_name, app.latest_commit, app.icon_path),
     repo_url: buildRepoUrl(app.repo_owner, app.repo_name),
     tools: app.tools_json ? JSON.parse(app.tools_json) : [],
@@ -371,7 +371,7 @@ async function syncApps(request: Request, env: Env): Promise<Response> {
       app.icon_path, app.screenshot_count,
       app.category, app.tags,
       latestVersion.version, latestVersion.commit,
-      app.has_ui ? 1 : 0, `https://construct-app-${app.id}.construct-computer.workers.dev`,
+      app.has_ui ? 1 : 0, `https://apps.construct.computer/${app.id}`,
       app.verified ? 1 : 0,
       JSON.stringify(app.tools), JSON.stringify(app.permissions),
       now, now
@@ -447,6 +447,75 @@ async function incrementInstall(id: string, env: Env): Promise<Response> {
   return json({ ok: true })
 }
 
+// ── App Runtime Proxy (apps.construct.computer) ──
+
+const CORS_HEADERS: HeadersInit = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-construct-auth, x-construct-user',
+}
+
+async function handleAppProxy(path: string, request: Request, env: Env): Promise<Response> {
+  // GET / — list available apps
+  if (path === '/' || path === '') {
+    const apps = await env.DB.prepare(
+      "SELECT id, name, description FROM apps WHERE status = 'active' ORDER BY name"
+    ).all<{ id: string; name: string; description: string }>()
+    return Response.json({ apps: apps.results || [] }, { headers: CORS_HEADERS })
+  }
+
+  // Extract appId from /{appId}/...
+  const match = path.match(/^\/([a-z0-9-]+)(\/.*)?$/)
+  if (!match) {
+    return Response.json({ error: 'Invalid path. Use /{appId}/mcp' }, { status: 400, headers: CORS_HEADERS })
+  }
+
+  const appId = match[1]
+  const subpath = match[2] || '/'
+
+  // Health check
+  if (subpath === '/health') {
+    return new Response('ok', { headers: CORS_HEADERS })
+  }
+
+  // MCP endpoint — proxy to the app's worker
+  if (subpath === '/mcp' && request.method === 'POST') {
+    const workerUrl = `https://construct-app-${appId}.construct-computer.workers.dev/mcp`
+
+    try {
+      const proxyResponse = await fetch(workerUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...( request.headers.get('x-construct-auth') ? { 'x-construct-auth': request.headers.get('x-construct-auth')! } : {}),
+          ...( request.headers.get('x-construct-user') ? { 'x-construct-user': request.headers.get('x-construct-user')! } : {}),
+        },
+        body: request.body,
+      })
+
+      const responseBody = await proxyResponse.text()
+      return new Response(responseBody, {
+        status: proxyResponse.status,
+        headers: {
+          'Content-Type': 'application/json',
+          ...CORS_HEADERS,
+        },
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      return Response.json(
+        { jsonrpc: '2.0', id: null, error: { code: -32000, message: `App "${appId}" is not reachable: ${msg}` } },
+        { status: 502, headers: CORS_HEADERS },
+      )
+    }
+  }
+
+  return Response.json(
+    { error: 'Not found. Available endpoints: POST /{appId}/mcp' },
+    { status: 404, headers: CORS_HEADERS },
+  )
+}
+
 // ── Main Router ──
 
 export default {
@@ -457,7 +526,7 @@ export default {
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-construct-auth, x-construct-user',
           'Access-Control-Max-Age': '86400',
         },
       })
@@ -465,8 +534,14 @@ export default {
 
     const url = new URL(request.url)
     const path = url.pathname
+    const hostname = url.hostname
 
     try {
+      // ── apps.construct.computer — App Runtime Proxy ──────────────────
+      if (hostname === 'apps.construct.computer') {
+        return await handleAppProxy(path, request, env)
+      }
+
       // HTML pages — registry.construct.computer
       if (request.method === 'GET') {
         if (path === '/')               return await browsePage(url, env)
