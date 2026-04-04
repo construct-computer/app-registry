@@ -1,6 +1,6 @@
 {
   "repo": "https://github.com/construct-computer/construct-app-sample",
-  "description": "Developer toolkit with JSON formatter, Base64, hashing, UUID generator, timestamps, and URL encoding.",
+  "description": "Developer toolkit — JSON formatter, Base64, hashing, UUID generator, timestamps, and URL encoding.",
   "versions": [
     {
       "version": "1.0.0",
