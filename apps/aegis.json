@@ -1,0 +1,11 @@
+{
+  "repo": "https://github.com/shubhamvelip4/aegis-app",
+  "description": "Autonomous support operations agent that monitors Slack channels, classifies tickets with Gemini AI, creates structured Notion records, persists data in Cloudflare D1, and auto-escalates P0/P1 incidents to on-call teams.",
+  "versions": [
+    {
+      "version": "0.1.0",
+      "commit": "c63fff27-e23b-4166-99a2-4d1d8e0c032e",
+      "date": "2026-04-22"
+    }
+  ]
+}
