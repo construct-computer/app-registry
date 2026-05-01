@@ -1,11 +1,11 @@
 {
-  "repo": "https://github.com/construct-computer/construct-app-mercadolibre",
-  "description": "Complete MercadoLibre integration — search products, manage listings, process orders, answer questions, and track shipments across Latin America.",
+  "repo": "https://github.com/ankushKun/mercadolibre-app",
+  "description": "Resolve single or batch Mercado Libre product codes into canonical product page URLs and SEO slugs without access tokens.",
   "versions": [
     {
       "version": "0.1.0",
-      "commit": "05b8be2",
-      "date": "2026-04-15"
+      "commit": "3df2f134c4f1cc53e7ca11f2541be4c059dc7d0d",
+      "date": "2026-05-02"
     }
   ]
 }
