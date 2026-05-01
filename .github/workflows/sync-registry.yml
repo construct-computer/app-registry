@@ -8,6 +8,7 @@ on:
       - 'collections/*.json'
       - 'categories.json'
       - 'curated.json'
+      - 'verified.json'
   workflow_dispatch:
 
 jobs:
