@@ -3,8 +3,8 @@
   "description": "Resolve single or batch Mercado Libre product codes into canonical product page URLs and SEO slugs without access tokens.",
   "versions": [
     {
-      "version": "0.1.0",
-      "commit": "3df2f134c4f1cc53e7ca11f2541be4c059dc7d0d",
+      "version": "0.1.1",
+      "commit": "a7986df11814f2797d2f119a3b1330f6b6f03aa8",
       "date": "2026-05-02"
     }
   ]
