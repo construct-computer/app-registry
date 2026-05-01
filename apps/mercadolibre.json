@@ -1,6 +1,6 @@
 {
   "repo": "https://github.com/ankushKun/mercadolibre-app",
-  "description": "Resolve single or batch Mercado Libre product codes into canonical product page URLs and SEO slugs without access tokens.",
+  "description": "Resolve Mercado Libre product codes into browser-ready URLs and large-batch CSV scaffolds for details like title, brand, model, price, original price, and specs.",
   "versions": [
     {
       "version": "0.1.2",
