@@ -11,6 +11,11 @@
       "version": "0.2.0",
       "commit": "bdec05888dad1da8caab46972150d3c15a15dd4c",
       "date": "2026-04-15"
+    },
+    {
+      "version": "0.2.1",
+      "commit": "2c5cfef2174cd168fdb2cb41d0c5c8e93a44306c",
+      "date": "2026-05-22"
     }
   ]
 }
