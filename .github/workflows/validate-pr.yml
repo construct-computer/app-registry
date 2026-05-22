@@ -103,13 +103,19 @@ jobs:
               cd -; continue
             fi
 
-            # Check icon exists
+            # Check icon exists. Prefer manifest.icon so SDK apps can keep
+            # assets under ui/, then fall back to legacy root filenames.
             has_icon="false"
-            for ext in png svg jpg; do
-              if [ -f "icon.$ext" ]; then has_icon="true"; break; fi
-            done
+            manifest_icon=$(jq -r '.icon // empty' manifest.json)
+            if [ -n "$manifest_icon" ] && [[ "$manifest_icon" != /* ]] && [[ "$manifest_icon" != *..* ]] && [ -f "$manifest_icon" ]; then
+              has_icon="true"
+            else
+              for ext in png svg jpg jpeg; do
+                if [ -f "icon.$ext" ]; then has_icon="true"; break; fi
+              done
+            fi
             if [ "$has_icon" = "false" ]; then
-              ERRORS="$ERRORS\n- $app_id: No icon file found (icon.png, icon.svg, or icon.jpg)"
+              ERRORS="$ERRORS\n- $app_id: No icon file found. Set manifest.json icon to an existing relative path or add icon.png/icon.svg/icon.jpg at repo root"
               cd -; continue
             fi
 

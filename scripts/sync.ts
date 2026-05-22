@@ -27,6 +27,7 @@ interface Manifest {
   author?: { name: string; url?: string };
   categories?: string[];
   tags?: string[];
+  icon?: string;
   ui?: unknown;
   tools?: Array<{ name: string; description: string }>;
   permissions?: Record<string, unknown>;
@@ -105,10 +106,24 @@ for await (const entry of Deno.readDir("apps")) {
     await Deno.readTextFile(manifestPath)
   );
 
-  // Detect icon
+  // Detect icon. Prefer the manifest path so SDK apps can keep assets under
+  // ui/, then fall back to the historical root icon filenames.
   let iconPath = "icon.png";
-  if (existsSync(`${tmpdir}/icon.svg`)) iconPath = "icon.svg";
-  else if (existsSync(`${tmpdir}/icon.jpg`)) iconPath = "icon.jpg";
+  const manifestIcon = typeof manifest.icon === "string" ? manifest.icon.trim() : "";
+  if (
+    manifestIcon &&
+    !manifestIcon.startsWith("/") &&
+    !manifestIcon.split("/").includes("..") &&
+    existsSync(`${tmpdir}/${manifestIcon}`)
+  ) {
+    iconPath = manifestIcon;
+  } else if (existsSync(`${tmpdir}/icon.svg`)) {
+    iconPath = "icon.svg";
+  } else if (existsSync(`${tmpdir}/icon.jpg`)) {
+    iconPath = "icon.jpg";
+  } else if (existsSync(`${tmpdir}/icon.jpeg`)) {
+    iconPath = "icon.jpeg";
+  }
 
   // Count screenshots
   let screenshotCount = 0;

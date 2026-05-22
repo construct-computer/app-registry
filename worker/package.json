@@ -9,7 +9,7 @@
     "prepare": "node scripts/stub-registry.mjs"
   },
   "dependencies": {
-    "@construct-computer/app-sdk": "^0.2.5"
+    "@construct-computer/app-sdk": "^0.2.7"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241205.0",

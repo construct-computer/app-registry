@@ -81,6 +81,14 @@ function buildIconUrl(repoOwner: string, repoName: string, commit: string, iconP
   return `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${commit}/${iconPath}`
 }
 
+function iconContentType(iconPath: string): string {
+  const ext = iconPath.split('.').pop()?.toLowerCase()
+  if (ext === 'svg') return 'image/svg+xml'
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg'
+  if (ext === 'webp') return 'image/webp'
+  return 'image/png'
+}
+
 function buildScreenshots(repoOwner: string, repoName: string, commit: string, count: number): string[] {
   return Array.from({ length: count }, (_, i) =>
     `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${commit}/screenshots/${i + 1}.png`
@@ -791,14 +799,14 @@ async function handleAppProxy(appId: string, subpath: string, request: Request, 
   }
 
   // Icon
-  if (subpath === '/icon' || subpath === '/icon.png') {
+  if (subpath === '/icon' || /^\/icon\.(png|svg|jpe?g|webp)$/.test(subpath)) {
     const app = await env.DB.prepare('SELECT repo_owner, repo_name, latest_commit, icon_path FROM apps WHERE id = ?')
       .bind(appId).first<{ repo_owner: string; repo_name: string; latest_commit: string; icon_path: string }>()
     if (!app) return new Response('Not found', { status: 404 })
     const rawUrl = `https://raw.githubusercontent.com/${app.repo_owner}/${app.repo_name}/${app.latest_commit}/${app.icon_path}`
     const res = await fetch(rawUrl)
     return new Response(res.body, {
-      headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400', ...CORS_HEADERS },
+      headers: { 'Content-Type': iconContentType(app.icon_path), 'Cache-Control': 'public, max-age=86400', ...CORS_HEADERS },
     })
   }
 

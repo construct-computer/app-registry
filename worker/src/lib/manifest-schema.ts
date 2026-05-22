@@ -6,12 +6,11 @@
  * autocomplete + validation while a developer is writing a manifest.
  *
  * Why this isn't imported from `@construct-computer/app-sdk`:
- *   The SDK package ships its own copy at
- *   `@construct-computer/app-sdk/schemas/manifest.schema.json`, but as of
- *   SDK 0.2.2 it's missing `owners`, `auth.schemes[]`, and a few other
- *   current fields. Keeping the authoritative copy here means the served
- *   schema never goes stale behind an SDK release. When the SDK next
- *   publishes with a superset schema, replace this file with:
+ *   The SDK package ships the same shape at
+ *   `@construct-computer/app-sdk/schemas/manifest.schema.json`, but Workers
+ *   cannot import JSON from that package without tsconfig/build changes.
+ *   When the registry worker build supports JSON module imports, replace
+ *   this file with:
  *     export { default as MANIFEST_SCHEMA } from '@construct-computer/app-sdk/schemas/manifest.schema.json'
  *   (also enable `resolveJsonModule` in tsconfig).
  *
@@ -37,7 +36,7 @@ export const MANIFEST_SCHEMA = {
       type: 'string',
       format: 'uri',
       description:
-        'URL of this JSON Schema. Set to https://raw.githubusercontent.com/construct-computer/app-sdk/main/schemas/manifest.schema.json to enable editor autocomplete.',
+        'URL of this JSON Schema. Set to https://registry.construct.computer/schemas/manifest.json to enable editor autocomplete.',
     },
     name: {
       type: 'string',
