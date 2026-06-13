@@ -26,11 +26,16 @@ import { decryptValue } from './lib/crypto'
 import { MANIFEST_SCHEMA } from './lib/manifest-schema'
 import { CONSTRUCT_SDK_JS, CONSTRUCT_SDK_CSS, SDK_RESPONSE_HEADERS_JS, SDK_RESPONSE_HEADERS_CSS } from './lib/construct-sdk'
 import { mintCallToken } from './lib/call-token'
+import { withRequestContext } from './lib/request-context'
 
 interface Env {
   DB: D1Database
   SYNC_SECRET: string
   ENVIRONMENT: string
+  // Observability: OTLP endpoint + auth for Grafana Cloud metrics export.
+  // Auth should be the full Authorization header value, set via `wrangler secret put`.
+  GRAFANA_OTLP_ENDPOINT?: string
+  GRAFANA_OTLP_AUTH?: string
   // Dev dashboard — GitHub OAuth + session cookies + per-app env var encryption
   GITHUB_CLIENT_ID?: string
   GITHUB_CLIENT_SECRET?: string
@@ -818,8 +823,7 @@ async function handleAppProxy(appId: string, subpath: string, request: Request, 
 
 // ── Main Router ──
 
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+async function appFetch(request: Request, env: Env): Promise<Response> {
     // CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, {
@@ -1052,6 +1056,9 @@ export default {
       console.error('Worker error:', msg, err)
       return error(`Internal server error: ${msg}`, 500)
     }
-  },
+  }
+
+export default {
+  fetch: withRequestContext(appFetch),
 }
 // deploy test

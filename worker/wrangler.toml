@@ -17,6 +17,27 @@ routes = [
 
 [vars]
 ENVIRONMENT = "production"
+# Grafana Cloud OTLP endpoint for metrics/traces/logs export.
+# Set the actual endpoint and auth token via `wrangler secret put` — do NOT
+# commit secrets to this file. GRAFANA_OTLP_AUTH should be the full
+# Authorization header value, e.g. "Basic <base64>".
+GRAFANA_OTLP_ENDPOINT = ""
+GRAFANA_OTLP_AUTH = ""
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+destinations = ["grafana-logs"]
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
+destinations = ["grafana-traces"]
 
 [[d1_databases]]
 binding = "DB"
