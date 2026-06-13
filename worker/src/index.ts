@@ -27,6 +27,7 @@ import { MANIFEST_SCHEMA } from './lib/manifest-schema'
 import { CONSTRUCT_SDK_JS, CONSTRUCT_SDK_CSS, SDK_RESPONSE_HEADERS_JS, SDK_RESPONSE_HEADERS_CSS } from './lib/construct-sdk'
 import { mintCallToken } from './lib/call-token'
 import { withRequestContext } from './lib/request-context'
+import { metrics } from './lib/metrics'
 
 interface Env {
   DB: D1Database
@@ -593,11 +594,17 @@ async function syncApps(request: Request, env: Env): Promise<Response> {
   }
 
   } catch (err) {
+    const syncDuration = Date.now() - now
+    metrics.counter('sync.ops_total', 1, { outcome: 'error' })
+    metrics.histogram('sync.duration_ms', syncDuration, { outcome: 'error' })
     const msg = err instanceof Error ? err.message : String(err)
     console.error('Sync D1 error:', msg, err)
     return error(`Sync failed: ${msg}`, 500)
   }
 
+  const syncDuration = Date.now() - now
+  metrics.counter('sync.ops_total', 1, { outcome: 'success', apps_synced: String(synced) })
+  metrics.histogram('sync.duration_ms', syncDuration, { outcome: 'success' })
   return json({ ok: true, synced })
 }
 
@@ -730,8 +737,10 @@ async function handleAppProxy(appId: string, subpath: string, request: Request, 
   // and a second app's handler never receives a Request that carries
   // another app's env.
   if (subpath === '/mcp' && request.method === 'POST') {
+    const mcpStartedAt = Date.now()
     const handler = APP_HANDLERS[appId]
     if (!handler) {
+      metrics.counter('mcp.requests_total', 1, { app_id: appId, outcome: 'handler_not_found' })
       return Response.json(
         { jsonrpc: '2.0', id: null, error: { code: -32000, message: `App "${appId}" is not installed on this server.` } },
         { status: 404, headers: CORS_HEADERS },
@@ -742,6 +751,9 @@ async function handleAppProxy(appId: string, subpath: string, request: Request, 
 
     try {
       const response = await handler(scopedRequest)
+      const mcpDuration = Date.now() - mcpStartedAt
+      metrics.counter('mcp.requests_total', 1, { app_id: appId, outcome: 'success' })
+      metrics.histogram('mcp.duration_ms', mcpDuration, { app_id: appId, outcome: 'success' })
       // Add CORS headers to the response
       const body = await response.text()
       return new Response(body, {
@@ -750,6 +762,9 @@ async function handleAppProxy(appId: string, subpath: string, request: Request, 
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
+      const mcpDuration = Date.now() - mcpStartedAt
+      metrics.counter('mcp.requests_total', 1, { app_id: appId, outcome: 'error' })
+      metrics.histogram('mcp.duration_ms', mcpDuration, { app_id: appId, outcome: 'error' })
       return Response.json(
         { jsonrpc: '2.0', id: null, error: { code: -32000, message: `App "${appId}" error: ${msg}` } },
         { status: 500, headers: CORS_HEADERS },

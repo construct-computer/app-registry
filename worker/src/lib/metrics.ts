@@ -6,6 +6,10 @@
  * serializes them to OTLP/JSON, and POSTs them to any OTLP-compatible endpoint
  * (e.g. Grafana Cloud).
  *
+ * Note: Grafana Cloud's OTLP gateway only accepts AGGREGATION_TEMPORALITY_CUMULATIVE.
+ * All counters and histograms accumulate from worker start (never reset) and
+ * report cumulative totals on every flush.
+ *
  * Usage:
  *   import { metrics } from '../lib/metrics';
  *   metrics.counter('http.requests_total', 1, { method: 'GET', route: '/health' });
@@ -13,54 +17,62 @@
  *   await metrics.pushAndLog('https://otlp.gateway.grafana.net/otlp', 'Basic ...', env);
  */
 
+const SERVICE_NAME = 'construct-app-registry';
+const SERVICE_VERSION = '1.0.1';
+
 export interface MetricAttributes {
   [key: string]: string;
 }
 
-interface CounterPoint {
-  value: number;
-  attributes: MetricAttributes;
-}
+const HISTOGRAM_BUCKETS = [10, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
 
-interface GaugePoint {
-  value: number;
-  attributes: MetricAttributes;
-}
-
-interface HistogramPoint {
-  values: number[];
+interface HistogramAccum {
+  count: number;
+  sum: number;
+  rawCounts: number[];
   attributes: MetricAttributes;
 }
 
 class MetricsRegistry {
-  private counters = new Map<string, CounterPoint[]>();
-  private gauges = new Map<string, GaugePoint[]>();
-  private histograms = new Map<string, HistogramPoint[]>();
+  private counters = new Map<string, { total: number; attributes: MetricAttributes }>();
+  private gauges = new Map<string, { value: number; attributes: MetricAttributes }>();
+  private histograms = new Map<string, HistogramAccum>();
   private hasData = false;
 
   counter(name: string, delta: number, attrs?: MetricAttributes): void {
     const key = this.metricKey(name, attrs);
-    const points = this.counters.get(key) ?? [];
-    points.push({ value: delta, attributes: attrs ?? {} });
-    this.counters.set(key, points);
+    const existing = this.counters.get(key);
+    if (existing) {
+      existing.total += delta;
+    } else {
+      this.counters.set(key, { total: delta, attributes: attrs ?? {} });
+    }
     this.hasData = true;
   }
 
   gauge(name: string, value: number, attrs?: MetricAttributes): void {
     const key = this.metricKey(name, attrs);
-    this.gauges.set(key, [{ value, attributes: attrs ?? {} }]);
+    this.gauges.set(key, { value, attributes: attrs ?? {} });
     this.hasData = true;
   }
 
   histogram(name: string, value: number, attrs?: MetricAttributes): void {
     const key = this.metricKey(name, attrs);
-    const points = this.histograms.get(key) ?? [];
-    points.push({ values: [value], attributes: attrs ?? {} });
-    this.histograms.set(key, points);
+    let h = this.histograms.get(key);
+    if (!h) {
+      h = { count: 0, sum: 0, rawCounts: new Array(HISTOGRAM_BUCKETS.length + 1).fill(0), attributes: attrs ?? {} };
+      this.histograms.set(key, h);
+    }
+    h.count++;
+    h.sum += value;
+    let bucket = HISTOGRAM_BUCKETS.length;
+    for (let i = 0; i < HISTOGRAM_BUCKETS.length; i++) {
+      if (value <= HISTOGRAM_BUCKETS[i]) { bucket = i; break; }
+    }
+    h.rawCounts[bucket]++;
     this.hasData = true;
   }
 
-  /** Serialise all buffered metrics as OTLP/JSON and clear buffers. Returns null if empty. */
   flush(environment: string): string | null {
     if (!this.hasData) return null;
 
@@ -69,96 +81,81 @@ class MetricsRegistry {
 
     const scopeMetrics: unknown[] = [];
 
-    // ── Counters ──
-    const counterByName = new Map<string, { attrs: MetricAttributes; sum: number }[]>();
-    for (const [key, points] of this.counters) {
+    // ── Counters (CUMULATIVE) ──
+    const counterByName = new Map<string, { total: number; attributes: MetricAttributes }[]>();
+    for (const [key, entry] of this.counters) {
       const name = key.includes(':') ? key.slice(0, key.indexOf(':')) : key;
-      let sum = 0;
-      for (const p of points) sum += p.value;
       const existing = counterByName.get(name) ?? [];
-      existing.push({ attrs: points[0]?.attributes ?? {}, sum });
+      existing.push(entry);
       counterByName.set(name, existing);
     }
-    for (const [name, points] of counterByName) {
+    for (const [name, entries] of counterByName) {
       scopeMetrics.push({
         name: `app_registry_${name.replace(/\./g, '_')}`,
         unit: '1',
         sum: {
-          dataPoints: points.map((p) => ({
+          dataPoints: entries.map((e) => ({
             startTimeUnixNano: nowNano,
             timeUnixNano: nowNano,
-            asDouble: p.sum,
-            attributes: this.attrsToOTLP(p.attrs),
+            asDouble: e.total,
+            attributes: this.attrsToOTLP(e.attributes),
           })),
-          aggregationTemporality: 'AGGREGATION_TEMPORALITY_DELTA',
+          aggregationTemporality: 'AGGREGATION_TEMPORALITY_CUMULATIVE',
           isMonotonic: true,
         },
       });
     }
 
     // ── Gauges ──
-    for (const [key, points] of this.gauges) {
+    const gaugeByName = new Map<string, { value: number; attributes: MetricAttributes }[]>();
+    for (const [key, entry] of this.gauges) {
       const name = key.includes(':') ? key.slice(0, key.indexOf(':')) : key;
+      const existing = gaugeByName.get(name) ?? [];
+      existing.push(entry);
+      gaugeByName.set(name, existing);
+    }
+    for (const [name, entries] of gaugeByName) {
       scopeMetrics.push({
         name: `app_registry_${name.replace(/\./g, '_')}`,
         unit: '1',
         gauge: {
-          dataPoints: points.map((p) => ({
+          dataPoints: entries.map((e) => ({
             startTimeUnixNano: nowNano,
             timeUnixNano: nowNano,
-            asDouble: p.value,
-            attributes: this.attrsToOTLP(p.attributes),
+            asDouble: e.value,
+            attributes: this.attrsToOTLP(e.attributes),
           })),
         },
       });
     }
 
-    // ── Histograms ──
-    const HISTOGRAM_BUCKETS = [10, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
-    function bucketCounts(values: number[]): number[] {
-      const counts = new Array(HISTOGRAM_BUCKETS.length + 1).fill(0);
-      for (const v of values) {
-        let bucket = HISTOGRAM_BUCKETS.length;
-        for (let i = 0; i < HISTOGRAM_BUCKETS.length; i++) {
-          if (v <= HISTOGRAM_BUCKETS[i]) { bucket = i; break; }
-        }
-        counts[bucket]++;
-      }
-      // Cumulative counts are required by Prometheus-style histograms.
-      for (let i = 1; i < counts.length; i++) counts[i] += counts[i - 1];
-      return counts;
-    }
-
-    const histByName = new Map<string, { attrs: MetricAttributes; sum: number; count: number; values: number[] }[]>();
-    for (const [key, points] of this.histograms) {
+    // ── Histograms (CUMULATIVE, convert raw counts to cumulative) ──
+    const histByName = new Map<string, HistogramAccum[]>();
+    for (const [key, h] of this.histograms) {
       const name = key.includes(':') ? key.slice(0, key.indexOf(':')) : key;
-      let sum = 0;
-      let count = 0;
-      const values: number[] = [];
-      for (const p of points) {
-        sum += p.values.reduce((a, b) => a + b, 0);
-        count += p.values.length;
-        values.push(...p.values);
-      }
       const existing = histByName.get(name) ?? [];
-      existing.push({ attrs: points[0]?.attributes ?? {}, sum, count, values });
+      existing.push(h);
       histByName.set(name, existing);
     }
-    for (const [name, points] of histByName) {
+    for (const [name, entries] of histByName) {
       scopeMetrics.push({
         name: `app_registry_${name.replace(/\./g, '_')}`,
         unit: 'ms',
         histogram: {
-          dataPoints: points.map((p) => ({
-            startTimeUnixNano: nowNano,
-            timeUnixNano: nowNano,
-            count: String(p.count),
-            sum: p.sum,
-            bucketCounts: bucketCounts(p.values).map(String),
-            explicitBounds: HISTOGRAM_BUCKETS,
-            attributes: this.attrsToOTLP(p.attrs),
-          })),
-          aggregationTemporality: 'AGGREGATION_TEMPORALITY_DELTA',
+          dataPoints: entries.map((h) => {
+            const cumulative = [...h.rawCounts];
+            for (let i = 1; i < cumulative.length; i++) cumulative[i] += cumulative[i - 1];
+            return {
+              startTimeUnixNano: nowNano,
+              timeUnixNano: nowNano,
+              count: h.count,
+              sum: h.sum,
+              bucketCounts: cumulative,
+              explicitBounds: HISTOGRAM_BUCKETS,
+              attributes: this.attrsToOTLP(h.attributes),
+            };
+          }),
+          aggregationTemporality: 'AGGREGATION_TEMPORALITY_CUMULATIVE',
         },
       });
     }
@@ -172,14 +169,14 @@ class MetricsRegistry {
       resourceMetrics: [{
         resource: {
           attributes: [
-            { key: 'service.name', value: { stringValue: 'construct-app-registry' } },
-            { key: 'service.version', value: { stringValue: '1.0.1' } },
+            { key: 'service.name', value: { stringValue: SERVICE_NAME } },
+            { key: 'service.version', value: { stringValue: SERVICE_VERSION } },
             { key: 'deployment.environment', value: { stringValue: environment } },
           ],
           droppedAttributesCount: 0,
         },
         scopeMetrics: [{
-          scope: { name: 'construct-app-registry', version: '1.0.1' },
+          scope: { name: SERVICE_NAME, version: SERVICE_VERSION },
           metrics: scopeMetrics,
         }],
       }],
@@ -189,7 +186,6 @@ class MetricsRegistry {
     return JSON.stringify(payload);
   }
 
-  /** POST buffered metrics to an OTLP endpoint and log the outcome. */
   async pushAndLog(endpoint: string, authHeader: string, environment: string): Promise<boolean> {
     const body = this.flush(environment);
     if (!body) return true;
@@ -219,10 +215,8 @@ class MetricsRegistry {
   }
 
   private clear(): void {
-    this.counters.clear();
     this.gauges.clear();
-    this.histograms.clear();
-    this.hasData = false;
+    this.hasData = this.counters.size > 0 || this.histograms.size > 0;
   }
 
   private metricKey(name: string, attrs?: MetricAttributes): string {
