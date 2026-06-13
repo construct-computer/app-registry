@@ -34,18 +34,18 @@ interface HistogramAccum {
 }
 
 class MetricsRegistry {
-  private counters = new Map<string, { total: number; attributes: MetricAttributes }>();
+  private counters = new Map<string, { total: number; attributes: MetricAttributes; unit: string }>();
   private gauges = new Map<string, { value: number; attributes: MetricAttributes }>();
   private histograms = new Map<string, HistogramAccum>();
   private hasData = false;
 
-  counter(name: string, delta: number, attrs?: MetricAttributes): void {
+  counter(name: string, delta: number, attrs?: MetricAttributes, unit?: string): void {
     const key = this.metricKey(name, attrs);
     const existing = this.counters.get(key);
     if (existing) {
       existing.total += delta;
     } else {
-      this.counters.set(key, { total: delta, attributes: attrs ?? {} });
+      this.counters.set(key, { total: delta, attributes: attrs ?? {}, unit: unit ?? '{count}' });
     }
     this.hasData = true;
   }
@@ -82,7 +82,7 @@ class MetricsRegistry {
     const scopeMetrics: unknown[] = [];
 
     // ── Counters (CUMULATIVE) ──
-    const counterByName = new Map<string, { total: number; attributes: MetricAttributes }[]>();
+    const counterByName = new Map<string, { total: number; attributes: MetricAttributes; unit: string }[]>();
     for (const [key, entry] of this.counters) {
       const name = key.includes(':') ? key.slice(0, key.indexOf(':')) : key;
       const existing = counterByName.get(name) ?? [];
@@ -90,9 +90,10 @@ class MetricsRegistry {
       counterByName.set(name, existing);
     }
     for (const [name, entries] of counterByName) {
+      const metricUnit = entries[0].unit || '{count}';
       scopeMetrics.push({
         name: `app_registry_${name.replace(/\./g, '_')}`,
-        unit: '1',
+        unit: metricUnit,
         sum: {
           dataPoints: entries.map((e) => ({
             startTimeUnixNano: nowNano,

@@ -104,12 +104,12 @@ export function withRequestContext<E extends ObservabilityEnv>(
     const status = response.status;
     const statusBucket = status >= 500 ? '5xx' : status >= 400 ? '4xx' : status >= 300 ? '3xx' : '2xx';
 
-    metrics.counter('http.requests_total', 1, {
+    metrics.counter('http.requests', 1, {
       method: request.method,
       route,
       status_bucket: statusBucket,
-    });
-    metrics.histogram('http.duration_ms', durationMs, {
+    }, '{request}');
+    metrics.histogram('http.duration', durationMs, {
       method: request.method,
       route,
     });
