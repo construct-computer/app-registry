@@ -29,12 +29,12 @@ head_sampling_rate = 1
 enabled = true
 head_sampling_rate = 1
 invocation_logs = true
-destinations = ["grafana-logs"]
+persist = true
 
 [observability.traces]
 enabled = true
 head_sampling_rate = 1
-destinations = ["grafana-traces"]
+persist = true
 
 [[d1_databases]]
 binding = "DB"

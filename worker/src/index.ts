@@ -26,8 +26,9 @@ import { decryptValue } from './lib/crypto'
 import { MANIFEST_SCHEMA } from './lib/manifest-schema'
 import { CONSTRUCT_SDK_JS, CONSTRUCT_SDK_CSS, SDK_RESPONSE_HEADERS_JS, SDK_RESPONSE_HEADERS_CSS } from './lib/construct-sdk'
 import { mintCallToken } from './lib/call-token'
-import { withRequestContext } from './lib/request-context'
+import { withRequestContext, logContextFromRequest } from './lib/request-context'
 import { metrics } from './lib/metrics'
+import { createLogger } from './lib/log'
 
 interface Env {
   DB: D1Database
@@ -404,6 +405,8 @@ interface SyncAppPayload {
 }
 
 async function syncApps(request: Request, env: Env): Promise<Response> {
+  const start = Date.now()
+  const log = createLogger('registry.sync', logContextFromRequest(request), env)
   // Verify auth
   const auth = request.headers.get('Authorization')
   if (!auth || auth !== `Bearer ${env.SYNC_SECRET}`) {
@@ -418,7 +421,11 @@ async function syncApps(request: Request, env: Env): Promise<Response> {
   try {
     body = await request.json()
   } catch (err) {
-    console.error('Failed to parse sync body:', err)
+    log.error('registry_sync_parse_failed', {
+      functionality: 'registry_sync',
+      outcome: 'error',
+      error_message: err instanceof Error ? err.message : String(err),
+    })
     return error('Invalid JSON body', 400)
   }
 
@@ -437,7 +444,11 @@ async function syncApps(request: Request, env: Env): Promise<Response> {
     // Reject ids that aren't valid as DNS labels or that collide with a
     // reserved subdomain. This protects the wildcard route from squatting.
     if (!isPublishableAppId(app.id)) {
-      console.warn(`Sync: rejecting invalid/reserved app id "${app.id}"`)
+      log.warn('registry_sync_rejected_app', {
+        functionality: 'registry_sync',
+        app_id: app.id,
+        outcome: 'partial',
+      })
       continue
     }
 
@@ -598,13 +609,24 @@ async function syncApps(request: Request, env: Env): Promise<Response> {
     metrics.counter('sync.operations', 1, { outcome: 'error' }, '{operation}')
     metrics.histogram('sync.duration', syncDuration, { outcome: 'error' })
     const msg = err instanceof Error ? err.message : String(err)
-    console.error('Sync D1 error:', msg, err)
+    log.error('registry_sync_failed', {
+      functionality: 'registry_sync',
+      outcome: 'error',
+      duration_ms: syncDuration,
+      error_message: msg,
+    })
     return error(`Sync failed: ${msg}`, 500)
   }
 
   const syncDuration = Date.now() - now
   metrics.counter('sync.operations', 1, { outcome: 'success', apps_synced: String(synced) }, '{operation}')
   metrics.histogram('sync.duration', syncDuration, { outcome: 'success' })
+  log.info('registry_sync', {
+    functionality: 'registry_sync',
+    outcome: 'success',
+    duration_ms: syncDuration,
+    extra: { apps_synced: synced },
+  })
   return json({ ok: true, synced })
 }
 
@@ -1068,7 +1090,12 @@ async function appFetch(request: Request, env: Env): Promise<Response> {
       return error('Not found', 404)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      console.error('Worker error:', msg, err)
+      createLogger('registry.http', logContextFromRequest(request), env).error('worker_error', {
+        functionality: 'http',
+        outcome: 'error',
+        path,
+        error_message: msg,
+      })
       return error(`Internal server error: ${msg}`, 500)
     }
   }

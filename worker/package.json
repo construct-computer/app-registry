@@ -9,7 +9,9 @@
     "prepare": "node scripts/stub-registry.mjs"
   },
   "dependencies": {
-    "@construct-computer/app-sdk": "^0.2.7"
+    "@construct-computer/app-sdk": "^0.2.7",
+    "@construct/observability": "file:../observability",
+    "hono": "^4.7.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241205.0",

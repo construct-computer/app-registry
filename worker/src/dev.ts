@@ -37,6 +37,8 @@ import {
   type DevSession,
 } from './lib/session';
 import { layout } from './lib/ui';
+import { createLogger } from './lib/log';
+import { logContextFromRequest } from './lib/request-context';
 
 export interface DevEnv {
   DB: D1Database;
@@ -75,7 +77,12 @@ export async function handleDevRequest(
     return textResponse('Not found', 404);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('Dev dashboard error:', msg, err);
+    createLogger('registry.dev', logContextFromRequest(request), { ENVIRONMENT: 'production' }).error('dev_dashboard_error', {
+      functionality: 'dev_dashboard',
+      outcome: 'error',
+      path,
+      error_message: msg,
+    });
     return textResponse(`Dashboard error: ${msg}`, 500);
   }
 }
