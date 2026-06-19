@@ -1,5 +1,5 @@
 /**
- * HTTP request context: correlation ids, trace propagation, access logging, metrics.
+ * HTTP request context: correlation ids, trace propagation, and access logging.
  */
 
 import {
@@ -7,7 +7,6 @@ import {
   withRequestContext as observabilityWithRequestContext,
 } from '@construct/observability';
 import { observabilityOptions } from './observability-config';
-import { metrics } from './metrics';
 
 export interface RequestContext {
   requestId: string;
@@ -18,8 +17,6 @@ export interface RequestContext {
 
 export interface ObservabilityEnv {
   ENVIRONMENT: string;
-  GRAFANA_OTLP_ENDPOINT?: string;
-  GRAFANA_OTLP_AUTH?: string;
   APP_VERSION?: string;
 }
 
@@ -60,37 +57,8 @@ export function withRequestContext<E extends ObservabilityEnv>(
   handler: (request: Request, env: E) => Promise<Response>,
 ) {
   return async (request: Request, env: E, executionCtx?: ExecutionContext): Promise<Response> => {
-    const start = Date.now();
-    const url = new URL(request.url);
-    const route = url.pathname;
-
     const inner = observabilityWithRequestContext(observabilityOptions(env), handler);
-    const response = await inner(request, env, executionCtx);
-
-    const durationMs = Date.now() - start;
-    const status = response.status;
-    const statusBucket = status >= 500 ? '5xx' : status >= 400 ? '4xx' : status >= 300 ? '3xx' : '2xx';
-
-    metrics.counter('http.requests', 1, {
-      method: request.method,
-      route,
-      status_bucket: statusBucket,
-    }, '{request}');
-    metrics.histogram('http.duration', durationMs, {
-      method: request.method,
-      route,
-    });
-
-    if (env.GRAFANA_OTLP_ENDPOINT && env.GRAFANA_OTLP_AUTH) {
-      const flush = metrics.pushAndLog(env.GRAFANA_OTLP_ENDPOINT, env.GRAFANA_OTLP_AUTH, env.ENVIRONMENT);
-      if (executionCtx) {
-        executionCtx.waitUntil(flush);
-      } else {
-        await flush;
-      }
-    }
-
-    return response;
+    return inner(request, env, executionCtx);
   };
 }
 

@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@construct-computer/app-sdk": "^0.2.7",
-    "@construct/observability": "file:../observability",
+    "@construct/observability": "git+https://github.com/construct-computer/observability.git#3f28ababc9e868978dd9f8fffd72f489351646cd",
     "hono": "^4.7.0"
   },
   "devDependencies": {

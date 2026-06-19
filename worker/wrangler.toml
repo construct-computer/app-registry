@@ -17,10 +17,6 @@ routes = [
 
 [vars]
 ENVIRONMENT = "production"
-# Grafana Cloud OTLP credentials are set as secrets via `wrangler secret put`.
-# GRAFANA_OTLP_ENDPOINT — the Grafana Cloud OTLP endpoint URL
-# GRAFANA_OTLP_AUTH    — the Authorization header value, e.g. "Basic <base64>"
-
 [observability]
 enabled = true
 head_sampling_rate = 1

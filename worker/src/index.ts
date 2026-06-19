@@ -27,17 +27,12 @@ import { MANIFEST_SCHEMA } from './lib/manifest-schema'
 import { CONSTRUCT_SDK_JS, CONSTRUCT_SDK_CSS, SDK_RESPONSE_HEADERS_JS, SDK_RESPONSE_HEADERS_CSS } from './lib/construct-sdk'
 import { mintCallToken } from './lib/call-token'
 import { withRequestContext, logContextFromRequest } from './lib/request-context'
-import { metrics } from './lib/metrics'
 import { createLogger } from './lib/log'
 
 interface Env {
   DB: D1Database
   SYNC_SECRET: string
   ENVIRONMENT: string
-  // Observability: OTLP endpoint + auth for Grafana Cloud metrics export.
-  // Auth should be the full Authorization header value, set via `wrangler secret put`.
-  GRAFANA_OTLP_ENDPOINT?: string
-  GRAFANA_OTLP_AUTH?: string
   // Dev dashboard — GitHub OAuth + session cookies + per-app env var encryption
   GITHUB_CLIENT_ID?: string
   GITHUB_CLIENT_SECRET?: string
@@ -606,8 +601,6 @@ async function syncApps(request: Request, env: Env): Promise<Response> {
 
   } catch (err) {
     const syncDuration = Date.now() - now
-    metrics.counter('sync.operations', 1, { outcome: 'error' }, '{operation}')
-    metrics.histogram('sync.duration', syncDuration, { outcome: 'error' })
     const msg = err instanceof Error ? err.message : String(err)
     log.error('registry_sync_failed', {
       functionality: 'registry_sync',
@@ -619,8 +612,6 @@ async function syncApps(request: Request, env: Env): Promise<Response> {
   }
 
   const syncDuration = Date.now() - now
-  metrics.counter('sync.operations', 1, { outcome: 'success', apps_synced: String(synced) }, '{operation}')
-  metrics.histogram('sync.duration', syncDuration, { outcome: 'success' })
   log.info('registry_sync', {
     functionality: 'registry_sync',
     outcome: 'success',
@@ -762,7 +753,6 @@ async function handleAppProxy(appId: string, subpath: string, request: Request, 
     const mcpStartedAt = Date.now()
     const handler = APP_HANDLERS[appId]
     if (!handler) {
-      metrics.counter('mcp.requests', 1, { app_id: appId, outcome: 'handler_not_found' }, '{request}')
       return Response.json(
         { jsonrpc: '2.0', id: null, error: { code: -32000, message: `App "${appId}" is not installed on this server.` } },
         { status: 404, headers: CORS_HEADERS },
@@ -773,9 +763,6 @@ async function handleAppProxy(appId: string, subpath: string, request: Request, 
 
     try {
       const response = await handler(scopedRequest)
-      const mcpDuration = Date.now() - mcpStartedAt
-      metrics.counter('mcp.requests', 1, { app_id: appId, outcome: 'success' }, '{request}')
-      metrics.histogram('mcp.duration', mcpDuration, { app_id: appId, outcome: 'success' })
       // Add CORS headers to the response
       const body = await response.text()
       return new Response(body, {
@@ -784,9 +771,6 @@ async function handleAppProxy(appId: string, subpath: string, request: Request, 
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      const mcpDuration = Date.now() - mcpStartedAt
-      metrics.counter('mcp.requests', 1, { app_id: appId, outcome: 'error' }, '{request}')
-      metrics.histogram('mcp.duration', mcpDuration, { app_id: appId, outcome: 'error' })
       return Response.json(
         { jsonrpc: '2.0', id: null, error: { code: -32000, message: `App "${appId}" error: ${msg}` } },
         { status: 500, headers: CORS_HEADERS },
