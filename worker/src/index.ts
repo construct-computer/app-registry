@@ -750,7 +750,6 @@ async function handleAppProxy(appId: string, subpath: string, request: Request, 
   // and a second app's handler never receives a Request that carries
   // another app's env.
   if (subpath === '/mcp' && request.method === 'POST') {
-    const mcpStartedAt = Date.now()
     const handler = APP_HANDLERS[appId]
     if (!handler) {
       return Response.json(
