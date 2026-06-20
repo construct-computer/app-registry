@@ -12,8 +12,8 @@ importers:
         specifier: ^0.2.7
         version: 0.2.7
       '@construct/observability':
-        specifier: git+https://github.com/construct-computer/observability.git#3f28ababc9e868978dd9f8fffd72f489351646cd
-        version: https://codeload.github.com/construct-computer/observability/tar.gz/3f28ababc9e868978dd9f8fffd72f489351646cd(hono@4.12.26)
+        specifier: git+https://github.com/construct-computer/observability.git#adac64bbf9b2189a16a9c1407432fc82ccab2a0e
+        version: https://codeload.github.com/construct-computer/observability/tar.gz/adac64bbf9b2189a16a9c1407432fc82ccab2a0e(hono@4.12.26)
       hono:
         specifier: ^4.7.0
         version: 4.12.26
@@ -79,8 +79,8 @@ packages:
   '@construct-computer/app-sdk@0.2.7':
     resolution: {integrity: sha512-I9QMyWf/4pzayppOmjYTMDe5Ca+mMpYE4PxfQ9ASoYK1dW9tBdhqs7Ej/SKzK9tQvCSDuIrrXHySr7qfbSNy/Q==}
 
-  '@construct/observability@https://codeload.github.com/construct-computer/observability/tar.gz/3f28ababc9e868978dd9f8fffd72f489351646cd':
-    resolution: {tarball: https://codeload.github.com/construct-computer/observability/tar.gz/3f28ababc9e868978dd9f8fffd72f489351646cd}
+  '@construct/observability@https://codeload.github.com/construct-computer/observability/tar.gz/adac64bbf9b2189a16a9c1407432fc82ccab2a0e':
+    resolution: {tarball: https://codeload.github.com/construct-computer/observability/tar.gz/adac64bbf9b2189a16a9c1407432fc82ccab2a0e}
     version: 0.1.0
     peerDependencies:
       hono: ^4.0.0
@@ -547,7 +547,7 @@ snapshots:
 
   '@construct-computer/app-sdk@0.2.7': {}
 
-  '@construct/observability@https://codeload.github.com/construct-computer/observability/tar.gz/3f28ababc9e868978dd9f8fffd72f489351646cd(hono@4.12.26)':
+  '@construct/observability@https://codeload.github.com/construct-computer/observability/tar.gz/adac64bbf9b2189a16a9c1407432fc82ccab2a0e(hono@4.12.26)':
     optionalDependencies:
       hono: 4.12.26
 

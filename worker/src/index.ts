@@ -27,12 +27,14 @@ import { MANIFEST_SCHEMA } from './lib/manifest-schema'
 import { CONSTRUCT_SDK_JS, CONSTRUCT_SDK_CSS, SDK_RESPONSE_HEADERS_JS, SDK_RESPONSE_HEADERS_CSS } from './lib/construct-sdk'
 import { mintCallToken } from './lib/call-token'
 import { withRequestContext, logContextFromRequest } from './lib/request-context'
-import { createLogger } from './lib/log'
+import { createLogger, maybeEmitDeploy, wireLogsForward } from './lib/log'
 
 interface Env {
   DB: D1Database
   SYNC_SECRET: string
   ENVIRONMENT: string
+  APP_VERSION?: string
+  LOGS_QUEUE?: Queue<import('@construct/observability').WideEvent>
   // Dev dashboard — GitHub OAuth + session cookies + per-app env var encryption
   GITHUB_CLIENT_ID?: string
   GITHUB_CLIENT_SECRET?: string
@@ -1084,6 +1086,10 @@ async function appFetch(request: Request, env: Env): Promise<Response> {
   }
 
 export default {
-  fetch: withRequestContext(appFetch),
+  fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    wireLogsForward(env, ctx)
+    maybeEmitDeploy(env)
+    return withRequestContext(appFetch)(request, env, ctx)
+  },
 }
 // deploy test
