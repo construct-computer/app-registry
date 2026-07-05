@@ -20,6 +20,7 @@
  */
 
 import { encryptValue } from './lib/crypto';
+import { withRegistryHtmlHeaders } from './lib/security-headers';
 import {
   authorizationUrl,
   exchangeCodeForToken,
@@ -159,11 +160,11 @@ async function logout(request: Request, env: DevEnv): Promise<Response> {
     `</body></html>`,
     {
       status: 200,
-      headers: {
+      headers: withRegistryHtmlHeaders({
         'Set-Cookie': buildClearCookieHeader(SESSION_COOKIE),
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-store',
-      },
+      }),
     },
   );
 }
@@ -381,7 +382,10 @@ function textResponse(body: string, status = 200): Response {
 function htmlResponse(body: string, status = 200): Response {
   return new Response(body, {
     status,
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+    headers: withRegistryHtmlHeaders({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+    }),
   });
 }
 
@@ -556,7 +560,7 @@ function htmlErrorPage(title: string, detail: string, status = 400): Response {
        </div>`,
       { activePage: 'dev' }
     ),
-    { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
+    { status, headers: withRegistryHtmlHeaders({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }) },
   );
 }
 

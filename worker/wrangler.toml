@@ -17,6 +17,7 @@ routes = [
 
 [vars]
 ENVIRONMENT = "production"
+CONSTRUCT_FRAME_ANCESTORS = "'self' https://beta.construct.computer https://staging.construct.computer http://localhost:8787 http://localhost:5173"
 [observability]
 enabled = true
 head_sampling_rate = 1

@@ -19,6 +19,7 @@
  *   POST /v1/sync              — Upsert app data from registry repo
  */
 
+import { withAppUiHeaders } from './lib/security-headers'
 import { browsePage, appDetailPage, publishPage } from './pages'
 import { APP_HANDLERS } from './apps/registry'
 import { handleDevRequest } from './dev'
@@ -48,6 +49,7 @@ interface Env {
   // Shared secret for worker-to-worker reads (e.g. construct worker
   // fetching permissions.uses for a given app from the registry DB).
   INTERNAL_API_SECRET?: string
+  CONSTRUCT_FRAME_ANCESTORS?: string
 }
 
 // Headers that must NEVER arrive at a bundled app handler from the outside.
@@ -813,12 +815,17 @@ async function handleAppProxy(appId: string, subpath: string, request: Request, 
         woff: 'font/woff',
       }
 
+      const contentType = contentTypes[ext] || 'application/octet-stream';
+      const responseHeaders: Record<string, string> = {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=3600',
+        ...CORS_HEADERS,
+      };
+
       return new Response(res.body, {
-        headers: {
-          'Content-Type': contentTypes[ext] || 'application/octet-stream',
-          'Cache-Control': 'public, max-age=3600',
-          ...CORS_HEADERS,
-        },
+        headers: ext === 'html'
+          ? withAppUiHeaders(responseHeaders, env)
+          : responseHeaders,
       })
     } catch {
       return new Response('Failed to fetch UI', { status: 502, headers: CORS_HEADERS })

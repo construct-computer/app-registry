@@ -8,11 +8,15 @@
  */
 
 import { layout, escapeHtml as esc } from './lib/ui';
+import { withRegistryHtmlHeaders } from './lib/security-headers';
 
 function html(body: string, status = 200): Response {
   return new Response(body, {
     status,
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=60' },
+    headers: withRegistryHtmlHeaders({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=60',
+    }),
   })
 }
 
