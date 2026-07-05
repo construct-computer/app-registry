@@ -1,4 +1,5 @@
 export const REGISTRY_HTML_SECURITY_HEADERS: Record<string, string> = {
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
   'X-Frame-Options': 'DENY',
   'Content-Security-Policy': "frame-ancestors 'none'",
   'X-Content-Type-Options': 'nosniff',
@@ -23,6 +24,7 @@ export function withAppUiHeaders(
 ): Record<string, string> {
   return {
     ...headers,
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
     'Content-Security-Policy': getAppFrameAncestorsCsp(env),
     'X-Content-Type-Options': 'nosniff',
   };

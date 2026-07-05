@@ -29,6 +29,12 @@ import { CONSTRUCT_SDK_JS, CONSTRUCT_SDK_CSS, SDK_RESPONSE_HEADERS_JS, SDK_RESPO
 import { mintCallToken } from './lib/call-token'
 import { logContextFromRequest } from './lib/request-context'
 import { logRegistry, maybeTrackDeploy, trackRegistryEvent } from './lib/registry-log'
+import {
+  ensureHttpsRedirect,
+  isSecurityTxtPath,
+  securityTxtRedirectResponse,
+  withStrictTransportSecurity,
+} from './lib/transport-security'
 
 interface Env {
   DB: D1Database
@@ -1109,8 +1115,18 @@ async function appFetch(request: Request, env: Env, ctx: ExecutionContext): Prom
   }
 
 export default {
-  fetch(request: Request, env: Env, ctx: ExecutionContext) {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     maybeTrackDeploy(env, ctx)
-    return appFetch(request, env, ctx)
+
+    const httpsRedirect = ensureHttpsRedirect(request)
+    if (httpsRedirect) return httpsRedirect
+
+    const url = new URL(request.url)
+    if (isSecurityTxtPath(url.pathname)) {
+      return securityTxtRedirectResponse()
+    }
+
+    const response = await appFetch(request, env, ctx)
+    return withStrictTransportSecurity(response, request)
   },
 }
