@@ -1,23 +1,12 @@
 /**
- * HTTP request context: correlation ids, trace propagation, and access logging.
+ * HTTP request context: correlation ids and trace propagation.
  */
-
-import {
-  applyTraceHeadersFromContext,
-  withRequestContext as observabilityWithRequestContext,
-} from '@construct/observability';
-import { observabilityOptions } from './observability-config';
 
 export interface RequestContext {
   requestId: string;
   traceId: string;
   correlationId: string;
   cfRay?: string;
-}
-
-export interface ObservabilityEnv {
-  ENVIRONMENT: string;
-  APP_VERSION?: string;
 }
 
 function generateRequestId(request: Request): string {
@@ -50,30 +39,13 @@ export function getRequestContext(request: Request): RequestContext {
 }
 
 export function applyTraceHeaders(ctx: RequestContext, request: Request): Request {
-  return applyTraceHeadersFromContext(ctx, request);
-}
-
-export function withRequestContext<E extends ObservabilityEnv>(
-  handler: (request: Request, env: E) => Promise<Response>,
-) {
-  return async (request: Request, env: E, executionCtx?: ExecutionContext): Promise<Response> => {
-    const inner = observabilityWithRequestContext(observabilityOptions(env), handler);
-    return inner(request, env, executionCtx);
-  };
+  const headers = new Headers(request.headers);
+  headers.set('x-request-id', ctx.requestId);
+  headers.set('x-trace-id', ctx.traceId);
+  return new Request(request, { headers });
 }
 
 /** Log context from an inbound request (trace ids for structured logs). */
-export function logContextFromRequest(request: Request): {
-  requestId: string;
-  traceId: string;
-  correlationId: string;
-  cfRay?: string;
-} {
-  const ctx = getRequestContext(request);
-  return {
-    requestId: ctx.requestId,
-    traceId: ctx.traceId,
-    correlationId: ctx.correlationId,
-    cfRay: ctx.cfRay,
-  };
+export function logContextFromRequest(request: Request): RequestContext {
+  return getRequestContext(request);
 }

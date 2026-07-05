@@ -38,8 +38,9 @@ import {
   type DevSession,
 } from './lib/session';
 import { layout } from './lib/ui';
-import { createLogger } from './lib/log';
+import { logRegistry } from './lib/registry-log';
 import { logContextFromRequest } from './lib/request-context';
+import type { RegistryObservabilityEnv } from './lib/observability-env';
 
 export interface DevEnv {
   DB: D1Database;
@@ -55,6 +56,8 @@ export async function handleDevRequest(
   request: Request,
   env: DevEnv,
   url: URL,
+  ctx?: ExecutionContext,
+  logEnv?: RegistryObservabilityEnv,
 ): Promise<Response> {
   const path = url.pathname;
   const method = request.method;
@@ -77,14 +80,18 @@ export async function handleDevRequest(
 
     return textResponse('Not found', 404);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    createLogger('registry.dev', logContextFromRequest(request), { ENVIRONMENT: 'production' }).error('dev_dashboard_error', {
-      functionality: 'dev_dashboard',
-      outcome: 'error',
-      path,
-      error_message: msg,
-    });
-    return textResponse(`Dashboard error: ${msg}`, 500);
+    const msg = err instanceof Error ? err.message : String(err)
+    if (logEnv) {
+      logRegistry(logEnv, ctx, {
+        level: 'error',
+        source: 'registry.dev',
+        message: 'dev_dashboard_error',
+        error: err,
+        request: logContextFromRequest(request),
+        context: { functionality: 'dev_dashboard', outcome: 'error', path, error_message: msg },
+      })
+    }
+    return textResponse(`Dashboard error: ${msg}`, 500)
   }
 }
 

@@ -39,3 +39,7 @@ database_name = "app-registry"
 database_id = "9d832b01-d540-4564-a6e1-337fb199f4d2"
 migrations_dir = "src/migrations"
 
+[[queues.producers]]
+binding = "ANALYTICS_QUEUE"
+queue = "construct-analytics"
+

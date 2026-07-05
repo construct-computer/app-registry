@@ -18,3 +18,4 @@
 ## Notes
 - This is a submodule of the monorepo.
 - Uses `@construct-computer/app-sdk`.
+- Observability: pin `@construct/observability` to `#d3607bb` (same as construct worker). Emit errors with `log()` and success metrics with `track()`; `SERVICE_NAME=construct-app-registry`. Wrangler binds `ANALYTICS_QUEUE` → `construct-analytics`. See `construct/worker/docs/logging-policy.md`.

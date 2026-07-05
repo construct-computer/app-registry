@@ -27,15 +27,15 @@ import { decryptValue } from './lib/crypto'
 import { MANIFEST_SCHEMA } from './lib/manifest-schema'
 import { CONSTRUCT_SDK_JS, CONSTRUCT_SDK_CSS, SDK_RESPONSE_HEADERS_JS, SDK_RESPONSE_HEADERS_CSS } from './lib/construct-sdk'
 import { mintCallToken } from './lib/call-token'
-import { withRequestContext, logContextFromRequest } from './lib/request-context'
-import { createLogger, maybeEmitDeploy, wireLogsForward } from './lib/log'
+import { logContextFromRequest } from './lib/request-context'
+import { logRegistry, maybeTrackDeploy, trackRegistryEvent } from './lib/registry-log'
 
 interface Env {
   DB: D1Database
   SYNC_SECRET: string
   ENVIRONMENT: string
   APP_VERSION?: string
-  LOGS_QUEUE?: Queue<import('@construct/observability').WideEvent>
+  ANALYTICS_QUEUE?: Queue
   // Dev dashboard — GitHub OAuth + session cookies + per-app env var encryption
   GITHUB_CLIENT_ID?: string
   GITHUB_CLIENT_SECRET?: string
@@ -403,9 +403,9 @@ interface SyncAppPayload {
   }>
 }
 
-async function syncApps(request: Request, env: Env): Promise<Response> {
+async function syncApps(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const start = Date.now()
-  const log = createLogger('registry.sync', logContextFromRequest(request), env)
+  const reqCtx = logContextFromRequest(request)
   // Verify auth
   const auth = request.headers.get('Authorization')
   if (!auth || auth !== `Bearer ${env.SYNC_SECRET}`) {
@@ -420,10 +420,13 @@ async function syncApps(request: Request, env: Env): Promise<Response> {
   try {
     body = await request.json()
   } catch (err) {
-    log.error('registry_sync_parse_failed', {
-      functionality: 'registry_sync',
-      outcome: 'error',
-      error_message: err instanceof Error ? err.message : String(err),
+    logRegistry(env, ctx, {
+      level: 'error',
+      source: 'registry.sync',
+      message: 'registry_sync_parse_failed',
+      error: err,
+      request: reqCtx,
+      context: { functionality: 'registry_sync', outcome: 'error' },
     })
     return error('Invalid JSON body', 400)
   }
@@ -443,10 +446,12 @@ async function syncApps(request: Request, env: Env): Promise<Response> {
     // Reject ids that aren't valid as DNS labels or that collide with a
     // reserved subdomain. This protects the wildcard route from squatting.
     if (!isPublishableAppId(app.id)) {
-      log.warn('registry_sync_rejected_app', {
-        functionality: 'registry_sync',
-        app_id: app.id,
-        outcome: 'partial',
+      logRegistry(env, ctx, {
+        level: 'warn',
+        source: 'registry.sync',
+        message: 'registry_sync_rejected_app',
+        request: reqCtx,
+        context: { functionality: 'registry_sync', app_id: app.id, outcome: 'partial' },
       })
       continue
     }
@@ -604,23 +609,36 @@ async function syncApps(request: Request, env: Env): Promise<Response> {
   }
 
   } catch (err) {
-    const syncDuration = Date.now() - now
+    const syncDuration = Date.now() - start
     const msg = err instanceof Error ? err.message : String(err)
-    log.error('registry_sync_failed', {
-      functionality: 'registry_sync',
-      outcome: 'error',
-      duration_ms: syncDuration,
-      error_message: msg,
+    logRegistry(env, ctx, {
+      level: 'error',
+      source: 'registry.sync',
+      message: 'registry_sync_failed',
+      error: err,
+      request: reqCtx,
+      context: {
+        functionality: 'registry_sync',
+        outcome: 'error',
+        duration_ms: syncDuration,
+        error_message: msg,
+      },
     })
     return error(`Sync failed: ${msg}`, 500)
   }
 
-  const syncDuration = Date.now() - now
-  log.info('registry_sync', {
-    functionality: 'registry_sync',
-    outcome: 'success',
-    duration_ms: syncDuration,
-    extra: { apps_synced: synced },
+  const syncDuration = Date.now() - start
+  trackRegistryEvent(env, ctx, {
+    event: 'system_event',
+    trigger: 'platform',
+    name: 'registry_sync',
+    source: 'registry.sync',
+    detail: {
+      functionality: 'registry_sync',
+      outcome: 'success',
+      duration_ms: syncDuration,
+      apps_synced: synced,
+    },
   })
   return json({ ok: true, synced })
 }
@@ -852,7 +870,7 @@ async function handleAppProxy(appId: string, subpath: string, request: Request, 
 
 // ── Main Router ──
 
-async function appFetch(request: Request, env: Env): Promise<Response> {
+async function appFetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     // CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, {
@@ -931,17 +949,13 @@ async function appFetch(request: Request, env: Env): Promise<Response> {
             { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } },
           )
         }
-        return await handleDevRequest(
-          request,
-          {
-            DB: env.DB,
-            GITHUB_CLIENT_ID: env.GITHUB_CLIENT_ID,
-            GITHUB_CLIENT_SECRET: env.GITHUB_CLIENT_SECRET,
-            SESSION_SECRET: env.SESSION_SECRET,
-            ENV_ENCRYPTION_KEY: env.ENV_ENCRYPTION_KEY,
-          },
-          url,
-        )
+        return await handleDevRequest(request, {
+          DB: env.DB,
+          GITHUB_CLIENT_ID: env.GITHUB_CLIENT_ID,
+          GITHUB_CLIENT_SECRET: env.GITHUB_CLIENT_SECRET,
+          SESSION_SECRET: env.SESSION_SECRET,
+          ENV_ENCRYPTION_KEY: env.ENV_ENCRYPTION_KEY,
+        }, url, ctx, env)
       }
 
       // HTML pages — registry.construct.computer only.
@@ -1021,7 +1035,7 @@ async function appFetch(request: Request, env: Env): Promise<Response> {
 
       // Authenticated sync endpoint
       if (request.method === 'POST' && path === '/v1/sync') {
-        return await syncApps(request, env)
+        return await syncApps(request, env, ctx)
       }
 
       // Internal: permissions.uses for a given app. Called by the
@@ -1082,11 +1096,13 @@ async function appFetch(request: Request, env: Env): Promise<Response> {
       return error('Not found', 404)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      createLogger('registry.http', logContextFromRequest(request), env).error('worker_error', {
-        functionality: 'http',
-        outcome: 'error',
-        path,
-        error_message: msg,
+      logRegistry(env, ctx, {
+        level: 'error',
+        source: 'registry.http',
+        message: 'worker_error',
+        error: err,
+        request: logContextFromRequest(request),
+        context: { functionality: 'http', outcome: 'error', path, error_message: msg },
       })
       return error(`Internal server error: ${msg}`, 500)
     }
@@ -1094,9 +1110,7 @@ async function appFetch(request: Request, env: Env): Promise<Response> {
 
 export default {
   fetch(request: Request, env: Env, ctx: ExecutionContext) {
-    wireLogsForward(env, ctx)
-    maybeEmitDeploy(env)
-    return withRequestContext(appFetch)(request, env, ctx)
+    maybeTrackDeploy(env, ctx)
+    return appFetch(request, env, ctx)
   },
 }
-// deploy test
