@@ -1,0 +1,11 @@
+{
+  "repo": "https://github.com/Rdisa27/construct-app-browser-devtools",
+  "description": "Remote browser tools for navigation, screenshots, console JavaScript, and Puppeteer automation.",
+  "versions": [
+    {
+      "version": "0.1.0",
+      "commit": "b8a7b4e4ebe31f7b0c1f68338d91fe5a1564b4ca",
+      "date": "2026-04-25"
+    }
+  ]
+}
