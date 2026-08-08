@@ -1,0 +1,11 @@
+{
+  "repo": "https://github.com/Botcoder757/sentry-triage-final",
+  "description": "Autonomously triages Sentry incidents — parses stack traces, git blames culprit lines, files Linear tickets, and posts Slack alerts.",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "commit": "6c525a1",
+      "date": "2026-04-22"
+    }
+  ]
+}
